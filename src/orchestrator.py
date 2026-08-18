@@ -1,9 +1,14 @@
 from langgraph.graph import StateGraph, END
+# StateGraph builds the agent workflow as a graph
+# END is a special marker that says "stop here"
 from langgraph.prebuilt import ToolNode
+# Pre-built node that handles tool execution automatically
 from langchain_anthropic import ChatAnthropic
 from langchain.tools import tool
+# Decorator that turns a Python function into a tool Claude can use
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from typing import TypedDict, Annotated, Sequence, Optional
+# Python typing tools for defining data structures
 import operator
 import os
 from dotenv import load_dotenv
@@ -44,21 +49,30 @@ def create_agent():
     llm = ChatAnthropic(
         model="claude-sonnet-4-6",
         api_key=os.getenv("ANTHROPIC_API_KEY"),
-        max_tokens=2000
+        max_tokens=2500
     )
-
+    
     tools = [search_web, search_pdfs]
     llm_with_tools = llm.bind_tools(tools)
     tool_node = ToolNode(tools)
-
+    
     def agent_node(state: AgentState):
         messages = state["messages"]
         response = llm_with_tools.invoke(messages)
         return {"messages": [response], "sources": state.get("sources", [])}
-
+    
     def should_continue(state: AgentState):
         messages = state["messages"]
         last_message = messages[-1]
+        
+        # Safety limit — prevent infinite loops
+        tool_call_count = sum(
+            1 for m in messages 
+            if hasattr(m, "tool_calls") and m.tool_calls
+        )
+        if tool_call_count >= 4:  # Max 4 tool calls per query
+            return END
+            
         if hasattr(last_message, "tool_calls") and last_message.tool_calls:
             return "tools"
         return END
@@ -81,19 +95,23 @@ def orchestrator(query: str, uploaded_files=None, chat_history=None) -> dict:
     
     set_uploaded_files(uploaded_files)
     
-    system_message = SystemMessage(content="""You are an expert research assistant with access to two tools:
-1. search_web: Use this to find current, real-time information from the internet
-2. search_pdfs: Use this to search uploaded PDF documents
+    system_message = SystemMessage(content="""You are an expert research analyst with two specialized tools:
 
-Always:
-- Search the web for current information on any topic
-- Search PDFs if documents are uploaded and the question might relate to them
-- Structure your response with clear sections and headers
-- Cite your sources explicitly
-- Highlight key findings
-- End with a concise summary
+1. search_web: Search the internet for current, real-time information
+2. search_pdfs: Search uploaded documents for relevant content
 
-Be thorough and use both tools when relevant.""")
+Your research strategy:
+- For factual or current questions: always search the web first
+- For document-specific questions: search PDFs first, then supplement with web
+- For comprehensive research: use both tools and cross-reference findings
+- Always cite where information came from
+- Flag any contradictions between sources
+- Structure responses with clear headers and a summary
+
+Quality standards:
+- Never guess — if you don't find it, say so
+- Prefer recent sources for time-sensitive topics
+- Distinguish between facts and analysis""")
 
     messages = [system_message]
     
@@ -117,7 +135,7 @@ Be thorough and use both tools when relevant.""")
     final_message = result["messages"][-1]
     answer = final_message.content if hasattr(final_message, "content") else str(final_message)
     
-    
+
    # Extract actual URLs from web agent
     from src.web_agent import get_last_sources
     actual_sources = get_last_sources()
