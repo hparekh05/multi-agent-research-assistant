@@ -107,4 +107,3 @@ if query := st.chat_input("Ask anything..."):
                 st.error(f"Error: {str(e)}")
 
 st.divider()
-st.caption("Multi-Agent Research Assistant")
