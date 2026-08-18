@@ -54,11 +54,11 @@ for message in st.session_state.messages:
                 if message.get("web_sources"):
                     st.markdown("**🌐 Web Sources:**")
                     for source in message["web_sources"]:
-                        st.write(f"• {source}")
+                        st.markdown(f"• {source}")
                 if message.get("pdf_sources"):
                     st.markdown("**📄 Document Sources:**")
                     for source in message["pdf_sources"]:
-                        st.write(f"• {source}")
+                        st.markdown(f"• {source}")
 
 # Chat input
 if query := st.chat_input("Ask anything..."):
@@ -85,11 +85,11 @@ if query := st.chat_input("Ask anything..."):
                         if result["web_sources"]:
                             st.markdown("**🌐 Web Sources:**")
                             for source in result["web_sources"]:
-                                st.write(f"• {source}")
+                                st.markdown(f"• {source}")
                         if result["pdf_sources"]:
                             st.markdown("**📄 Document Sources:**")
                             for source in result["pdf_sources"]:
-                                st.write(f"• {source}")
+                                st.markdown(f"• {source}")
                 
                 # Save to history
                 st.session_state.messages.append({
@@ -107,4 +107,4 @@ if query := st.chat_input("Ask anything..."):
                 st.error(f"Error: {str(e)}")
 
 st.divider()
-st.caption("Multi-Agent Research Assistant | LangChain · LangGraph · Claude · Tavily · ChromaDB")
+st.caption("Multi-Agent Research Assistant")

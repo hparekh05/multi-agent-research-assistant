@@ -117,19 +117,19 @@ Be thorough and use both tools when relevant.""")
     final_message = result["messages"][-1]
     answer = final_message.content if hasattr(final_message, "content") else str(final_message)
     
-    # Extract sources
-    web_sources = []
+    
+   # Extract actual URLs from web agent
+    from src.web_agent import get_last_sources
+    actual_sources = get_last_sources()
+    
+    web_sources = [f"[{s['title']}]({s['url']})" for s in actual_sources]
     pdf_sources = []
     
     for message in result["messages"]:
         if hasattr(message, "tool_calls") and message.tool_calls:
             for tool_call in message.tool_calls:
-                tool_name = tool_call.get("name", "")
-                query_used = tool_call.get("args", {}).get("query", "")
-                if tool_name == "search_web":
-                    web_sources.append(f"Web search: {query_used}")
-                elif tool_name == "search_pdfs":
-                    pdf_sources.append(f"PDF search: {query_used}")
+                if tool_call.get("name") == "search_pdfs":
+                    pdf_sources.append("PDF document search")
     
     return {
         "answer": answer,
