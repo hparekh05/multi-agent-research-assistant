@@ -1,6 +1,9 @@
 venv/
-.env
+.venv/
 __pycache__/
 *.pyc
+.env
 .chroma/
 chroma_db/
+*.dylib
+*.so
