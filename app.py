@@ -1,3 +1,4 @@
+import time
 import streamlit as st
 from langchain_core.messages import HumanMessage, AIMessage
 from src.orchestrator import orchestrator
@@ -46,14 +47,14 @@ with st.sidebar:
     st.divider()
 
     st.markdown("**How it works:**")
-    st.markdown(
-        """
-        1. 🌐 Web Agent searches the internet
-        2. 📄 PDF Agent searches your documents
-        3. 🧠 Claude reasons and synthesizes
-        4. ✅ Structured answer with sources
-        """
-    )
+    st.markdown("""
+    1. 🌐 Web Agent searches the internet
+    2. 📄 PDF Agent searches your documents
+    3. 🧠 Claude reasons and synthesizes
+    4. ✅ Structured answer with sources
+    """)
+
+# Display chat history
 for message in st.session_state.messages:
 
     with st.chat_message(message["role"]):
@@ -75,18 +76,10 @@ for message in st.session_state.messages:
                     for source in message["pdf_sources"]:
                         st.markdown(f"• {source}")
 
-
+# Chat input
 if query := st.chat_input("Ask anything..."):
-    st.session_state.messages.append(
-        {
-            "role": "user",
-            "content": query
-        }
-    )
-
-    st.session_state.chat_history.append(
-        HumanMessage(content=query)
-    )
+    st.session_state.messages.append({"role": "user", "content": query})
+    st.session_state.chat_history.append(HumanMessage(content=query))
 
     with st.chat_message("user"):
         st.markdown(query)
@@ -99,74 +92,41 @@ if query := st.chat_input("Ask anything..."):
                     uploaded_files=uploaded_files,
                     chat_history=st.session_state.chat_history
                 )
-    
-        # Stream the answer word by word
-        response_container = st.empty()
-        full_response = ""
-    
-        # Simulate streaming by revealing words progressively
-        import time
-        words = result["answer"].split(" ")
-        for word in words:
-            full_response += word + " "
-            response_container.markdown(full_response + "▌")
-            time.sleep(0.02)  # 20ms between words
-    
-        response_container.markdown(full_response)
-
-                web_sources = result.get(
-                    "web_sources",
-                    web_sources
-                )
-
-                pdf_sources = result.get(
-                    "pdf_sources",
-                    []
-                )
-
-                if web_sources or pdf_sources:
-
-                    with st.expander("📚 Sources"):
-
-                        if web_sources:
-
-                            st.markdown("**🌐 Web Sources:**")
-
-                            for source in web_sources:
-                                st.markdown(
-                                    f"• {source}"
-                                )
-
-                        if pdf_sources:
-
-                            st.markdown(
-                                "**📄 Document Sources:**"
-                            )
-
-                            for source in pdf_sources:
-                                st.markdown(
-                                    f"• {source}"
-                                )
-
-                st.session_state.messages.append(
-                    {
-                        "role": "assistant",
-                        "content": full_response,
-                        "web_sources": web_sources,
-                        "pdf_sources": pdf_sources
-                    }
-                )
-
-                st.session_state.chat_history.append(
-                    AIMessage(content=full_response)
-                )
-
-
             except Exception as e:
+                st.error(f"Error: {str(e)}")
+                result = None
 
-                st.error(
-                    f"Error: {str(e)}"
-                )
+        if result:
+            response_container = st.empty()
+            full_response = ""
+
+            words = result["answer"].split(" ")
+            for word in words:
+                full_response += word + " "
+                response_container.markdown(full_response + "▌")
+                time.sleep(0.02)
+
+            response_container.markdown(full_response)
+
+            if result.get("sources"):
+                with st.expander("📚 Sources"):
+                    if result.get("web_sources"):
+                        st.markdown("**🌐 Web Sources:**")
+                        for source in result["web_sources"]:
+                            st.markdown(f"• {source}")
+                    if result.get("pdf_sources"):
+                        st.markdown("**📄 Document Sources:**")
+                        for source in result["pdf_sources"]:
+                            st.markdown(f"• {source}")
+
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": full_response,
+                "sources": result.get("sources", []),
+                "web_sources": result.get("web_sources", []),
+                "pdf_sources": result.get("pdf_sources", [])
+            })
+            st.session_state.chat_history.append(AIMessage(content=full_response))
 
 st.divider()
-
+st.caption("Multi-Agent Research Assistant | LangChain · LangGraph · Claude · Tavily · ChromaDB · MCP")
