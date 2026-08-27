@@ -108,12 +108,15 @@ if query := st.chat_input("Ask anything..."):
 
             response_container.markdown(full_response)
 
-            if result.get("sources"):
+            actual_sources = get_last_sources()
+            if actual_sources:
                 with st.expander("📚 Sources"):
-                    if result.get("web_sources"):
-                        st.markdown("**🌐 Web Sources:**")
-                        for source in result["web_sources"]:
-                            st.markdown(f"• {source}")
+                    st.markdown("**🌐 Web Sources:**")
+                    for source in actual_sources:
+                        title = source.get("title", source.get("url", ""))
+                        url = source.get("url", "")
+                        if url:
+                            st.markdown(f"• [{title}]({url})")
                     if result.get("pdf_sources"):
                         st.markdown("**📄 Document Sources:**")
                         for source in result["pdf_sources"]:
