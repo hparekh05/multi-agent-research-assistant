@@ -1,6 +1,8 @@
 import streamlit as st
-from src.orchestrator import orchestrator
 from langchain_core.messages import HumanMessage, AIMessage
+from src.orchestrator import orchestrator
+from src.synthesizer import synthesizer_agent_stream
+from src.web_agent import get_last_sources
 
 st.set_page_config(
     page_title="Multi-Agent Research Assistant",
@@ -8,102 +10,163 @@ st.set_page_config(
     layout="wide"
 )
 
+
 st.title("🔍 Multi-Agent Research Assistant")
 st.markdown("*Powered by Claude + Web Search + Document Analysis*")
 
-# Sidebar
+
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
 with st.sidebar:
     st.header("📄 Upload Documents")
+
     uploaded_files = st.file_uploader(
         "Upload PDFs to include in research",
         type=["pdf"],
         accept_multiple_files=True
     )
-    
+
     if uploaded_files:
         st.success(f"{len(uploaded_files)} document(s) uploaded")
-        for f in uploaded_files:
-            st.write(f"• {f.name}")
-    
+
+        for file in uploaded_files:
+            st.write(f"• {file.name}")
+
     st.divider()
-    
+
     if st.button("🗑️ Clear Conversation"):
         st.session_state.messages = []
         st.session_state.chat_history = []
         st.rerun()
-    
+
     st.divider()
+
     st.markdown("**How it works:**")
-    st.markdown("1. 🌐 Web Agent searches the internet")
-    st.markdown("2. 📄 PDF Agent searches your documents")
-    st.markdown("3. 🧠 Claude reasons and synthesizes")
-    st.markdown("4. ✅ Structured answer with sources")
-
-# Initialize session state
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-
-# Display chat history
+    st.markdown(
+        """
+        1. 🌐 Web Agent searches the internet
+        2. 📄 PDF Agent searches your documents
+        3. 🧠 Claude reasons and synthesizes
+        4. ✅ Structured answer with sources
+        """
+    )
 for message in st.session_state.messages:
+
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
-        if message.get("sources"):
+
+        if message.get("web_sources") or message.get("pdf_sources"):
+
             with st.expander("📚 Sources"):
+
                 if message.get("web_sources"):
                     st.markdown("**🌐 Web Sources:**")
+
                     for source in message["web_sources"]:
                         st.markdown(f"• {source}")
+
                 if message.get("pdf_sources"):
                     st.markdown("**📄 Document Sources:**")
+
                     for source in message["pdf_sources"]:
                         st.markdown(f"• {source}")
 
-# Chat input
+
 if query := st.chat_input("Ask anything..."):
-    # Add user message
-    st.session_state.messages.append({"role": "user", "content": query})
-    st.session_state.chat_history.append(HumanMessage(content=query))
-    
+    st.session_state.messages.append(
+        {
+            "role": "user",
+            "content": query
+        }
+    )
+
+    st.session_state.chat_history.append(
+        HumanMessage(content=query)
+    )
+
     with st.chat_message("user"):
         st.markdown(query)
-    
+
     with st.chat_message("assistant"):
-        with st.spinner("🤖 Agents working..."):
+        with st.spinner("🤖 Agents searching..."):
             try:
                 result = orchestrator(
                     query=query,
                     uploaded_files=uploaded_files,
                     chat_history=st.session_state.chat_history
                 )
-                
-                st.markdown(result["answer"])
-                
-                if result["sources"]:
-                    with st.expander("📚 Sources"):
-                        if result["web_sources"]:
-                            st.markdown("**🌐 Web Sources:**")
-                            for source in result["web_sources"]:
-                                st.markdown(f"• {source}")
-                        if result["pdf_sources"]:
-                            st.markdown("**📄 Document Sources:**")
-                            for source in result["pdf_sources"]:
-                                st.markdown(f"• {source}")
-                
-                # Save to history
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": result["answer"],
-                    "sources": result["sources"],
-                    "web_sources": result["web_sources"],
-                    "pdf_sources": result["pdf_sources"]
-                })
-                st.session_state.chat_history.append(
-                    AIMessage(content=result["answer"])
+    
+        # Stream the answer word by word
+        response_container = st.empty()
+        full_response = ""
+    
+        # Simulate streaming by revealing words progressively
+        import time
+        words = result["answer"].split(" ")
+        for word in words:
+            full_response += word + " "
+            response_container.markdown(full_response + "▌")
+            time.sleep(0.02)  # 20ms between words
+    
+        response_container.markdown(full_response)
+
+                web_sources = result.get(
+                    "web_sources",
+                    web_sources
                 )
-                
+
+                pdf_sources = result.get(
+                    "pdf_sources",
+                    []
+                )
+
+                if web_sources or pdf_sources:
+
+                    with st.expander("📚 Sources"):
+
+                        if web_sources:
+
+                            st.markdown("**🌐 Web Sources:**")
+
+                            for source in web_sources:
+                                st.markdown(
+                                    f"• {source}"
+                                )
+
+                        if pdf_sources:
+
+                            st.markdown(
+                                "**📄 Document Sources:**"
+                            )
+
+                            for source in pdf_sources:
+                                st.markdown(
+                                    f"• {source}"
+                                )
+
+                st.session_state.messages.append(
+                    {
+                        "role": "assistant",
+                        "content": full_response,
+                        "web_sources": web_sources,
+                        "pdf_sources": pdf_sources
+                    }
+                )
+
+                st.session_state.chat_history.append(
+                    AIMessage(content=full_response)
+                )
+
+
             except Exception as e:
-                st.error(f"Error: {str(e)}")
+
+                st.error(
+                    f"Error: {str(e)}"
+                )
 
 st.divider()
+

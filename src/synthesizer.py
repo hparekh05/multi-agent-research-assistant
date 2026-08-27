@@ -62,3 +62,40 @@ Never fabricate information. If sources don't cover something, say so clearly.""
             "web_sources": [],
             "pdf_sources": []
         }
+def synthesizer_agent_stream(query: str, web_results: dict, pdf_results: dict):
+    """Streaming version of synthesizer - yields chunks as they generate."""
+    
+    llm = ChatAnthropic(
+        model="claude-sonnet-4-6",
+        api_key=os.getenv("ANTHROPIC_API_KEY"),
+        max_tokens=2500
+    )
+    
+    context = f"""
+WEB SEARCH RESULTS:
+{web_results.get('content', 'No web results found.')}
+
+PDF DOCUMENT RESULTS:
+{pdf_results.get('content', 'No PDF results found.')}
+"""
+    
+    messages = [
+        SystemMessage(content="""You are an expert research analyst that synthesizes 
+information from multiple sources into clear, structured reports.
+
+Your responses must:
+- Start with a brief executive summary (2-3 sentences)
+- Use clear sections with emoji headers for readability
+- Explicitly attribute claims to their source (web or document)
+- Highlight conflicting information between sources when found
+- Include a Key Takeaways section at the end
+- Be factual and avoid speculation beyond what sources support
+
+Never fabricate information. If sources don't cover something, say so clearly."""),
+        HumanMessage(content=f"Research question: {query}\n\nResearch context:\n{context}")
+    ]
+    
+    # Stream chunks
+    for chunk in llm.stream(messages):
+        if chunk.content:
+            yield chunk.content
