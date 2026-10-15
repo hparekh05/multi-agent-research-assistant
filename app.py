@@ -3,7 +3,7 @@ import streamlit as st
 from langchain_core.messages import HumanMessage, AIMessage
 from src.orchestrator import orchestrator
 from src.synthesizer import synthesizer_agent_stream
-from src.web_agent import get_last_sources
+
 
 st.set_page_config(
     page_title="Multi-Agent Research Assistant",
@@ -107,20 +107,21 @@ if query := st.chat_input("Ask anything..."):
                 time.sleep(0.02)
 
             response_container.markdown(full_response)
+   
+            web_sources = result.get("web_sources", [])
+            pdf_sources = result.get("pdf_sources", [])
 
-            actual_sources = get_last_sources()
-            if actual_sources:
+            if web_sources or pdf_sources:
                 with st.expander("📚 Sources"):
-                    st.markdown("**🌐 Web Sources:**")
-                    for source in actual_sources:
-                        title = source.get("title", source.get("url", ""))
-                        url = source.get("url", "")
-                        if url:
-                            st.markdown(f"• [{title}]({url})")
-                    if result.get("pdf_sources"):
+                    if web_sources:
+                        st.markdown("**🌐 Web Sources:**")
+                        for source in web_sources:
+                            st.markdown(f"- [{source}]({source})")
+
+                    if pdf_sources:
                         st.markdown("**📄 Document Sources:**")
-                        for source in result["pdf_sources"]:
-                            st.markdown(f"• {source}")
+                        for source in pdf_sources:
+                            st.markdown(f"- {source}")
 
             st.session_state.messages.append({
                 "role": "assistant",

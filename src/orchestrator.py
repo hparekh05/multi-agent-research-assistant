@@ -11,6 +11,7 @@ from typing import TypedDict, Annotated, Sequence
 import operator
 import os
 import tempfile
+import json
 
 from dotenv import load_dotenv
 
@@ -23,6 +24,9 @@ load_dotenv()
 
 # Global storage for uploaded files
 _uploaded_files = []
+_web_sources = []
+_pdf_sources = []
+
 
 
 def set_uploaded_files(files):
@@ -35,21 +39,51 @@ class AgentState(TypedDict):
     sources: list
 
 
+
+
 @tool
 def search_web(query: str) -> str:
-    """
-    Search the web for current, real-time information through MCP.
-    """
-    return search_web_mcp(query)
+    """Search the web through MCP and return results with source URLs."""
+
+    global _web_sources
+
+    raw_result = search_web_mcp(query)
+
+    try:
+        data = json.loads(raw_result)
+        content = data.get("content", "")
+        sources = data.get("sources", [])
+        error = data.get("error")
+
+        if error:
+            return f"Web search error: {error}"
+
+        # Save the actual URLs returned by MCP
+        for url in sources:
+            if url and url not in _web_sources:
+                _web_sources.append(url)
+
+        formatted_sources = "\n".join(
+            f"- {url}" for url in sources
+        )
+
+        return (
+            f"Search results:\n{content}\n\n"
+            f"Source URLs:\n{formatted_sources}"
+        )
+
+    except (json.JSONDecodeError, AttributeError):
+        return raw_result
+
+
+
 
 
 @tool
 def search_pdfs(query: str) -> str:
-    """
-    Search uploaded PDF documents through MCP.
-    """
+    """Search uploaded PDFs through MCP and return passages with citations."""
 
-    global _uploaded_files
+    global _uploaded_files, _pdf_sources
 
     if not _uploaded_files:
         return "No PDF documents have been uploaded."
@@ -68,14 +102,57 @@ def search_pdfs(query: str) -> str:
             pdf_path = tmp.name
 
         try:
-            result = search_documents_mcp(
+            raw_result = search_documents_mcp(
                 query=query,
                 pdf_path=pdf_path
             )
 
-            results.append(
-                f"Document: {uploaded_file.name}\n{result}"
-            )
+            try:
+                data = json.loads(raw_result)
+                content = data.get("content", "")
+                sources = data.get("sources", [])
+                error = data.get("error")
+
+                if error:
+                    results.append(
+                        f"Document: {uploaded_file.name}\n"
+                        f"Search error: {error}"
+                    )
+                    continue
+
+                citations = []
+
+                for source in sources:
+                    source = str(source)
+
+                    if ", page " in source:
+                        page = source.split(", page ", 1)[1]
+                        citation = f"{uploaded_file.name}, page {page}"
+                    else:
+                        citation = uploaded_file.name
+
+                    if citation not in _pdf_sources:
+                        _pdf_sources.append(citation)
+
+                    if citation not in citations:
+                        citations.append(citation)
+
+                citation_text = (
+                    ", ".join(citations)
+                    if citations
+                    else "No citations returned"
+                )
+
+                results.append(
+                    f"Document: {uploaded_file.name}\n"
+                    f"Relevant passages:\n{content}\n"
+                    f"PDF citations: {citation_text}"
+                )
+
+            except (json.JSONDecodeError, AttributeError):
+                results.append(
+                    f"Document: {uploaded_file.name}\n{raw_result}"
+                )
 
         finally:
             # Delete temporary PDF
@@ -86,12 +163,15 @@ def search_pdfs(query: str) -> str:
 
 
 def create_agent():
-
+       
     llm = ChatAnthropic(
         model="claude-sonnet-4-6",
         api_key=os.getenv("ANTHROPIC_API_KEY"),
-        max_tokens=2500
+        max_tokens=2500,
+        timeout=120,
+        max_retries=2
     )
+
 
     tools = [
         search_web,
@@ -174,6 +254,11 @@ def orchestrator(
     uploaded_files=None,
     chat_history=None
 ) -> dict:
+    global _web_sources, _pdf_sources
+    _web_sources = []
+    _pdf_sources = []
+
+    set_uploaded_files(uploaded_files)
 
     """
     Main research orchestrator.
@@ -181,8 +266,6 @@ def orchestrator(
     The LangGraph agent uses MCP-powered tools
     for web and PDF research.
     """
-
-    set_uploaded_files(uploaded_files)
 
     system_message = SystemMessage(
         content="""
@@ -208,6 +291,19 @@ Research strategy:
 - Cite sources whenever possible.
 - Flag contradictions between sources.
 - Give structured, useful answers.
+
+
+
+Citation requirements:
+- Cite only information supported by the actual search results.
+- For PDF information, use the exact filename and page number returned by the PDF search tool.
+- Place citations immediately after the claims they support.
+- Do not cite the PDF for facts that do not appear in the retrieved passages.
+- Do not invent metrics, project details, technologies, or citations.
+- If the retrieved information does not support a claim, omit the claim or clearly state that the information could not be verified.
+- If a response uses both web and PDF results, distinguish the sources for each claim.
+
+
 """
     )
 
@@ -241,10 +337,11 @@ Research strategy:
         else str(final_message)
     )
 
+
     return {
         "answer": answer,
-        "sources": [],
-        "web_sources": [],
-        "pdf_sources": [],
+        "sources": _web_sources + _pdf_sources,
+        "web_sources": _web_sources.copy(),
+        "pdf_sources": _pdf_sources.copy(),
         "query": query
     }
