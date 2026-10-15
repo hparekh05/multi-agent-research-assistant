@@ -1,59 +1,124 @@
-# 🔍 Multi-Agent Research Assistant
+# Multi-Agent Research Assistant
 
-An AI-powered research assistant that orchestrates multiple specialized agents to answer complex questions using both web search and document analysis.
+**Research across the web and your own documents, with AI-generated answers grounded in retrieved sources.**
 
-## 🏗️ Architecture
+A Python-based research assistant that combines LLM-powered reasoning, web search, and semantic PDF retrieval. Built with Claude, LangChain, MCP, and Streamlit, the project explores how AI agents can connect external tools and synthesize information into useful, source-backed responses.
 
-## ✨ Features
+## What It Does
 
-- 🌐 **Web Search Agent** — searches the internet in real time using Tavily
-- 📄 **PDF Agent** — performs semantic search across uploaded documents using vector embeddings
-- 🧠 **Synthesizer Agent** — uses Claude to combine and structure information from all sources
-- 📚 **Source Attribution** — every answer cites exactly where information came from
-- 💬 **Conversation Memory** — remembers context across follow-up questions
-- ⚡ **Multi-source synthesis** — identifies conflicts between sources
+**Explore the web**
 
-## 🛠️ Tech Stack
+Retrieve information from web searches and preserve source URLs so users can follow up on relevant material.
 
-- **LangChain** — agent orchestration and RAG pipeline
-- **Anthropic Claude** — LLM for synthesis and reasoning
-- **Tavily** — real-time web search API
-- **ChromaDB** — vector database for document storage
-- **Sentence Transformers** — local embeddings (HuggingFace)
-- **Streamlit** — production UI
-- **Python** — core language
+**Ask questions about PDFs**
 
-## 🚀 Getting Started
+Upload documents and search for semantically relevant passages instead of relying only on exact keyword matches.
 
-### Prerequisites
-- Python 3.10+
+**Connect tools through MCP**
+
+Use the Model Context Protocol to expose web research and document retrieval as tools that the assistant can invoke.
+
+**Generate grounded answers**
+
+Combine retrieved information into a clear response, with available web links and document references displayed in the interface.
+
+## How It Works
+
+The application brings together three main parts:
+
+| Component | Responsibility |
+|---|---|
+| Streamlit interface | Accept questions, manage uploaded PDFs, and display responses |
+| Research orchestration | Coordinate the LLM and available research tools |
+| MCP tools | Retrieve web information and search uploaded documents |
+
+Retrieved information is passed into the answer-generation workflow. The application then presents the response alongside the source references collected during retrieval.
+
+## Built With
+
+- **Python** for application logic and integration
+- **Anthropic Claude** for language understanding and answer generation
+- **LangChain and LangGraph** for LLM and agent workflow components
+- **Model Context Protocol (MCP)** for tool integration
+- **Tavily** for web search
+- **ChromaDB and Sentence Transformers** for vector-based document retrieval
+- **Streamlit** for the interactive interface
+
+## Run Locally
+
+### Requirements
+
+- Python 3.10 or later
 - Anthropic API key
-- Tavily API key (free at tavily.com)
+- Tavily API key
 
-### Installation
+### 1. Get the project
 
 ```bash
 git clone https://github.com/hparekh05/multi-agent-research-assistant.git
 cd multi-agent-research-assistant
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
 ```
 
-### Configuration
+### 2. Set up Python
 
-Create a `.env` file:
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+```
 
-## 💡 Use Cases
+### 3. Configure your API keys
 
-- Research synthesis across multiple sources
-- Document Q&A with web augmentation
-- Competitive intelligence gathering
-- Literature review automation
+Create a `.env` file in the root directory:
 
-## 🔮 Roadmap
+```env
+ANTHROPIC_API_KEY=your_anthropic_api_key
+TAVILY_API_KEY=your_tavily_api_key
+```
 
-- [ ] LangGraph ReAct agent with dynamic tool selection
-- [ ] Streaming responses
-- [ ] Conversation memory persistence
-- [ ] Public deployment on Streamlit Cloud
+Use your own API keys in place of the placeholders. Keep `.env` private and out of version control.
+
+### 4. Start the app
+
+```bash
+streamlit run app.py
+```
+
+Open the local address printed in the terminal.
+
+## Run the MCP Tests
+
+With your virtual environment activated, run:
+
+```bash
+python test_mcp.py
+python test_mcp_client.py
+python test_mcp_pdf.py
+```
+
+The tests exercise MCP tool discovery, client-server communication, and PDF search. External-service tests require valid credentials and network access.
+
+## Engineering Focus
+
+This project brings together several practical AI engineering concepts:
+
+- Connecting LLM applications to external tools
+- Retrieving relevant information from unstructured documents
+- Separating tool execution from answer generation
+- Returning source references with generated responses
+- Building an interactive interface for research workflows
+
+## Future Directions
+
+- Improve PDF page-level citation accuracy
+- Evaluate retrieval relevance and answer grounding
+- Add automated tests for orchestration and error handling
+- Support persistent research sessions
+- Track latency, retrieval quality, and LLM usage
+
+## Author
+
+**Hiya Parekh**
+
+[GitHub](https://github.com/hparekh05) · [Project Repository](https://github.com/hparekh05/multi-agent-research-assistant)
+
