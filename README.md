@@ -4,15 +4,6 @@
 
 A Python-based research assistant that combines LLM-powered reasoning, web search, and semantic PDF retrieval. Built with Claude, LangChain, MCP, and Streamlit, the project explores how AI agents can connect external tools and synthesize information into useful, source-backed responses.
 
-## Run with Docker
-
-```
-cp .env.example .env    # then add your ANTHROPIC_API_KEY and TAVILY_API_KEY
-docker compose up --build
-```
-
-Open http://localhost:8501. The first build takes several minutes and needs roughly 15 GB of free disk space.
-
 ## What It Does
 
 **Explore the web**
@@ -54,6 +45,15 @@ Retrieved information is passed into the answer-generation workflow. The applica
 - **Streamlit** for the interactive interface
 
 ## Run Locally
+
+## Run with Docker
+
+```
+cp .env.example .env    # then add your ANTHROPIC_API_KEY and TAVILY_API_KEY
+docker compose up --build
+```
+
+Open http://localhost:8501. The first build takes several minutes and needs roughly 15 GB of free disk space.
 
 ### Requirements
 
