@@ -1,0 +1,11 @@
+.git
+.github
+.devcontainer
+.venv
+venv
+__pycache__
+*.pyc
+.env
+.chroma
+chroma_db
+eval/results

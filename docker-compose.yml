@@ -1,0 +1,9 @@
+# One service. ChromaDB runs in-process (the app builds a temporary in-memory index per PDF search),
+# so no separate database container is needed.
+services:
+  app:
+    build: .
+    env_file: .env        # ANTHROPIC_API_KEY, TAVILY_API_KEY (see .env.example). Never commit .env.
+    ports:
+      - "8501:8501"
+    restart: unless-stopped

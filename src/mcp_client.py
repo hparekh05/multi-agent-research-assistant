@@ -1,4 +1,5 @@
 import asyncio
+import os
 import sys
 from pathlib import Path
 
@@ -10,14 +11,25 @@ from mcp.client.stdio import stdio_client
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
-async def _call_mcp_tool(tool_name: str, arguments: dict):
-    """Connect to the MCP server and call a tool."""
+def _server_params() -> StdioServerParameters:
+    """How to launch the MCP server subprocess.
 
-    server_params = StdioServerParameters(
+    env is passed explicitly because the MCP stdio client only forwards a few variables
+    (PATH, HOME, ...) by default. Without this, TAVILY_API_KEY and HF_HOME set through
+    Docker or CI never reach the server, and web search / PDF search fail there.
+    """
+    return StdioServerParameters(
         command=sys.executable,
         args=["-m", "src.mcp_server"],
         cwd=str(PROJECT_ROOT),
+        env=dict(os.environ),
     )
+
+
+async def _call_mcp_tool(tool_name: str, arguments: dict):
+    """Connect to the MCP server and call a tool."""
+
+    server_params = _server_params()
 
     async with stdio_client(server_params) as (read_stream, write_stream):
 
@@ -79,11 +91,7 @@ def list_mcp_tools():
 
     async def _list():
 
-        server_params = StdioServerParameters(
-            command=sys.executable,
-            args=["-m", "src.mcp_server"],
-            cwd=str(PROJECT_ROOT),
-        )
+        server_params = _server_params()
 
         async with stdio_client(server_params) as (
             read_stream,
